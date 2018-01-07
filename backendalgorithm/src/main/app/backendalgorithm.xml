@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="${http.port}" doc:name="HTTP Listener Configuration"/>
+    <spring:beans>
+    	<spring:bean class="backendalgorithm.ConvertInput" name="ConvertInput">
+    		
+    	</spring:bean>
+    </spring:beans>
+    <http:request-config name="HTTP_Request_Configuration" host="${algo.host}" port="8081" doc:name="HTTP Request Configuration"/>
+    <flow name="frontEndFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/" doc:name="HTTP"/>
+        <set-payload value="&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+	&lt;head&gt;
+	&lt;title&gt;Convert Integer&lt;/title&gt;
+	&lt;/head&gt;
+	&lt;body&gt;
+		&lt;form action=&quot;get-result&quot;&gt;
+			&lt;h1&gt;Please enter numbers&lt;/h1&gt;
+			&quot;Lower Number&quot;
+			&lt;input type=&quot;text&quot; name=&quot;lower&quot; /&gt;
+			&quot;Higher Number&quot;
+			&lt;input type=&quot;text&quot; name=&quot;higher&quot; /&gt;
+			&lt;input type=&quot;submit&quot; value=&quot;Submit&quot;&gt;
+		&lt;/form&gt;
+	&lt;/body&gt;
+&lt;/html&gt;" mimeType="text/html" doc:name="Set Payload"/>
+    </flow>
+    <flow name="backendalgorithmFlow1">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="get-result" doc:name="HTTP"/>
+        <logger message="input params are#[message.inboundProperties.'http.query.params'.lower]" level="INFO" doc:name="Logger"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="convert-integer" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="lower" value="#[message.inboundProperties.'http.query.params'.lower]"/>
+                <http:query-param paramName="higher" value="#[message.inboundProperties.'http.query.params'.higher]"/>
+            </http:request-builder>
+        </http:request>
+        <logger message="befor transformation #[payload]" level="INFO" doc:name="Logger"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <set-payload value="&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+	&lt;head&gt;
+	&lt;title&gt;Convert Integer&lt;/title&gt;
+	&lt;/head&gt;
+	&lt;body&gt;
+		&lt;h1&gt;The result is : &lt;/h1&gt; #[payload]
+	&lt;/body&gt;
+&lt;/html&gt;" mimeType="text/html" doc:name="Set Payload"/>
+    </flow>
+    <flow name="backendalgorithmFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="convert-integer" doc:name="HTTP"/>
+        <invoke object-ref="ConvertInput" method="convertInput" methodArguments="#[message.inboundProperties.'http.query.params'.lower],#[message.inboundProperties.'http.query.params'.higher]" doc:name="Invoke"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <set-payload value="{&quot;result&quot;:#[payload]}" mimeType="application/json" doc:name="Set Payload"/>
+    </flow>
+</mule>
